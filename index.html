@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="glass">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Território Jardins · GIS</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#E4562E">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="top" class="panel">
+  <button class="ico" id="menu" title="Lista"><i class="fa fa-bars"></i></button>
+  <b class="brand"><i class="fa fa-map-location-dot"></i> <span>Território Jardins</span></b>
+  <nav id="nav">
+    <button data-v="map" class="on"><i class="fa fa-map"></i> <span>Mapa</span></button>
+    <button data-v="ctl"><i class="fa fa-clipboard-list"></i> <span>Controle</span></button>
+    <button data-v="dash"><i class="fa fa-chart-pie"></i> <span>Dashboard</span></button>
+  </nav>
+  <div id="themes">
+    <button data-t="light" title="Claro"><i class="fa fa-sun"></i></button>
+    <button data-t="dark" title="Escuro"><i class="fa fa-moon"></i></button>
+    <button data-t="glass" title="Glass"><i class="fa fa-gem"></i></button>
+  </div>
+</header>
+<button id="tg" class="panel" title="Ocultar/exibir barra"><i class="fa fa-chevron-up"></i></button>
+<main>
+  <section id="v-map" class="view on">
+    <div id="map"></div>
+    <aside id="side" class="panel">
+      <input id="q" type="search" placeholder="Pesquisar mapa ou quadra...">
+      <div id="tree"></div>
+      <button class="btn p ed" onclick="novaQuadra()"><i class="fa fa-draw-polygon"></i> Nova quadra (desenhar)</button>
+      <small class="sm">Editar: selecione a quadra e use o lápis (✎); clique na quadra para renomear.</small>
+      <div class="row">
+        <button class="btn" onclick="exp()"><i class="fa fa-download"></i> GeoJSON</button>
+        <button class="btn ed" onclick="gerarTodos()"><i class="fa fa-wand-magic-sparkles"></i> Gerar quadras (todos)</button>
+        <label class="btn ed"><i class="fa fa-upload"></i> Importar<input type="file" id="imp" accept=".json,.geojson" hidden></label>
+      </div>
+    </aside>
+    <aside id="info" class="panel"></aside>
+  </section>
+  <section id="v-ctl" class="view"></section>
+  <section id="v-dash" class="view"></section>
+</main>
+<div id="dbar" class="panel" hidden><button class="p" onclick="DH&&DH.completeShape()">Concluir</button><button onclick="DH&&DH.deleteLastVertex()">Desfazer ponto</button><button onclick="DH&&DH.disable()">Cancelar</button></div>
+<div id="modal" hidden><div class="panel card" id="mc"></div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+<script src="data.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Turf.js/6.5.0/turf.min.js"></script>
+<script src="app.js"></script>
+<script src="extras.js"></script>
+</body>
+</html>

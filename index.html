@@ -814,6 +814,12 @@ td input{padding:4px 6px}
 #hist tr.sel{background:rgba(0,160,168,.18)}
 #side .row label{flex:1;min-width:0}#side .row select{padding:5px 6px}
 .ro #nav [data-v=cfg]{display:none}
+/* barra de desenho oculta (botões); só os botões Salvar/Cancelar da edição continuam visíveis */
+.leaflet-draw-toolbar{border:0!important;box-shadow:none!important;background:none!important}
+.leaflet-draw-toolbar>a{display:none!important}
+/* 3D */
+#m3{position:fixed;inset:66px 0 0 0;z-index:1150}#m3[hidden]{display:none}.nohdr #m3{top:0}
+#m3x{position:absolute;top:10px;left:10px;z-index:5;padding:8px 14px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -903,10 +909,12 @@ const base={'OpenStreetMap':T('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.pn
  'ArcGIS Satélite':T('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}','Esri'),
  'Sem fundo (offline)':L.layerGroup(),
  'ArcGIS Ruas':T('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}','Esri')};
-(navigator.onLine?base['ArcGIS Ruas']:base['Sem fundo (offline)']).addTo(map); // offline: só Mapas e quadras, sem imagem de fundo
+let BASE=(()=>{try{const b=localStorage.getItem('jardins_base');if(b&&base[b])return b}catch(_){}return navigator.onLine?'ArcGIS Ruas':'Sem fundo (offline)'})();
+base[BASE].addTo(map);map.on('baselayerchange',e=>{BASE=e.name;try{localStorage.setItem('jardins_base',BASE)}catch(_){}}); // a imagem do WhatsApp usa o fundo escolhido aqui
+ // offline: só Mapas e quadras, sem imagem de fundo
 /* FUTURO: GeoWeb Vitória (WMS/WMTS) -> base['GeoWeb']=L.tileLayer.wms(URL,{layers:'...'}); camadas cadastrais idem; 3D: trocar por ArcGIS SceneView. */
 const caminhos=L.layerGroup(KML_DATA.caminhos.map(c=>L.polyline(c,{color:'#695E4A',weight:2,dashArray:'2 6',interactive:false})));
-L.control.layers(base,{'Caminhos (KML)':caminhos},{position:'bottomright'}).addTo(map);
+const LC=L.control.layers(base,{'Caminhos (KML)':caminhos},{position:'bottomright'}).addTo(map);
 map.createPane('mapas').style.zIndex=390;
 map.createPane('mask').style.zIndex=395; // máscara "spotlight" entre Mapas e Quadras
 
@@ -1094,12 +1102,14 @@ async function card(e,tiles=true){
   g.fillStyle='#722900';g.font='bold 30px sans-serif';g.fillText('Quadras (da direita p/ esquerda): '+(qs.map(q=>q.nome).join(' · ')||'—'),50,oy-14);
   const F=document.createElement('canvas');F.width=fw;F.height=fh;const f=F.getContext('2d');f.fillStyle='#EFE9DF';f.fillRect(0,0,fw,fh);
   let ruas=[],nums=[];const pr=Promise.all([ruasDe(m).then(r=>ruas=r,()=>{}),numsDe(m).then(n=>nums=n,()=>{})]);
+  if(/^Sem/.test(BASE))tiles=false;
+  const TU=BASE=='OpenStreetMap'?(z,b,a)=>`https://tile.openstreetmap.org/${z}/${a}/${b}.png`:BASE=='ArcGIS Satélite'?(z,b,a)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${b}/${a}`:(z,b,a)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${b}/${a}`;
   if(tiles){
     const z=Math.max(14,Math.min(18,Math.round(Math.log2(156543*k*sc/111320)))),n2=2**z,R=Math.PI/180,mid=[(y0+y1)/2,(x0+x1)/2];
     const tx=l=>(l+180)/360*n2,ty=l=>(1-Math.log(Math.tan(l*R)+1/Math.cos(l*R))/Math.PI)/2*n2,ll=(a,b)=>[Math.atan(Math.sinh(Math.PI*(1-2*b/n2)))/R,a/n2*360-180],jobs=[];
     const la0=mid[0]+fh/2/sc,la1=mid[0]-fh/2/sc,lo0=(mid[1]-fw/2/sc)/k,lo1=(mid[1]+fw/2/sc)/k;
     for(let a=Math.floor(tx(lo0));a<=Math.floor(tx(lo1));a++)for(let b=Math.floor(ty(la0));b<=Math.floor(ty(la1));b++)
-      jobs.push(new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r([i,a,b]);i.onerror=()=>r(null);i.src=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${b}/${a}`}));
+      jobs.push(new Promise(r=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>r([i,a,b]);i.onerror=()=>r(null);i.src=TU(z,b,a)}));
     for(const t of await Promise.all(jobs)){if(!t)continue;const A=P(ll(t[1],t[2])),B=P(ll(t[1]+1,t[2]+1));f.drawImage(t[0],A[0],A[1],B[0]-A[0]+1,B[1]-A[1]+1)}
     await pr;
   }else{
@@ -1117,7 +1127,7 @@ async function card(e,tiles=true){
   f.strokeStyle='#4F4739';f.lineWidth=5;f.beginPath();f.moveTo(fw-50,120);f.lineTo(fw-50,62);f.moveTo(fw-50,62);f.lineTo(fw-64,84);f.moveTo(fw-50,62);f.lineTo(fw-36,84);f.stroke();lab('N',fw-50,38,34,'#4F4739'); // norte para cima
   f.beginPath();f.moveTo(fw-130,200);f.lineTo(fw-42,200);f.moveTo(fw-42,200);f.lineTo(fw-64,186);f.moveTo(fw-42,200);f.lineTo(fw-64,214);f.stroke();lab('PRAIA',fw-86,236,30,'#00585C'); // lado da praia: sempre à direita
   g.drawImage(F,40,oy);g.strokeStyle='#D8C2AE';g.lineWidth=2;g.strokeRect(40,oy,fw,fh);
-  g.textAlign='left';g.fillStyle='#695E4A';g.font='16px sans-serif';g.fillText('Mapa © Esri, HERE, Garmin, OpenStreetMap contributors · Números prediais © OpenStreetMap contributors',50,H-20);
+  g.textAlign='left';g.fillStyle='#695E4A';g.font='16px sans-serif';g.fillText((BASE=='OpenStreetMap'?'Mapa © OpenStreetMap contributors':'Mapa © Esri, HERE, Garmin, OpenStreetMap contributors')+' · Números prediais © OpenStreetMap contributors',50,H-20);
   return c;
 }
 let CARD;
@@ -1226,10 +1236,10 @@ function cfg(){const cl=typeof CLOUD_URL!=='undefined'&&CLOUD_URL;
   $('#v-cfg').innerHTML=`<div class="page"><div class="panel"><h2><i class="fa fa-gear"></i> Configurações</h2>
   <div class="row"><button class="p" onclick="backup()"><i class="fa fa-download"></i> Salvar backup</button><button onclick="csv()"><i class="fa fa-file-excel"></i> Gerar tabela (salvar no aparelho)</button></div>
   <small class="sm">Último backup: ${S.bk?new Date(S.bk).toLocaleString('pt-BR'):'nunca'}</small>
-  <label style="margin-top:12px">Script do Google Sheets (link /exec)<input id="nu" value="${esc(localStorage.getItem('jardins_url')||CU())}" placeholder="https://script.google.com/macros/s/.../exec"></label>
-  <div class="row"><button class="p" onclick="conectar()"><i class="fa fa-plug"></i> Conectar e sincronizar</button></div>
-  <div class="row"><button onclick="diag()"><i class="fa fa-stethoscope"></i> Testar conexão</button></div><pre id="dg" class="sm" style="white-space:pre-wrap"></pre>
-  <small class="sm">${CU()?'<i class="fa fa-cloud"></i> Sincronização automática ligada.':'Sem link: os dados ficam só neste aparelho.'}${cl?'':' Para valer em todos os aparelhos, cole também o link em config.js.'}</small></div></div>`}
+  ${cl?'':`<label style="margin-top:12px">Script do Google Sheets (link /exec)<input id="nu" value="${esc(localStorage.getItem('jardins_url')||'')}" placeholder="https://script.google.com/macros/s/.../exec"></label>
+  <div class="row"><button class="p" onclick="conectar()"><i class="fa fa-plug"></i> Conectar e sincronizar</button></div>`}
+  <div class="row" style="margin-top:12px"><button onclick="diag()"><i class="fa fa-stethoscope"></i> Testar conexão</button>${cl?'<button onclick="nuvem(0)"><i class="fa fa-rotate"></i> Sincronizar agora</button>':''}</div><pre id="dg" class="sm" style="white-space:pre-wrap"></pre>
+  <small class="sm">${CU()?'<i class="fa fa-cloud"></i> Sincronização automática ligada.':'Sem link: os dados ficam só neste aparelho.'}${cl?'':' Para valer em todos os aparelhos, cole o link em config.js.'}</small></div></div>`}
 async function diag(){const o=$('#dg'),u=CU();if(!u){o.textContent='Nenhum link configurado neste aparelho.';return}
   o.textContent='Testando...\nLink em uso: '+u+'\nVersão local: '+(S.ver||'(nenhuma)')+' · '+S.quadras.length+' quadras · '+S.entregas.length+' entregas aqui';const t=Date.now();
   try{const j=await jsonp(u,'acao=dados&ver=');o.textContent+='\n\nPlanilha respondeu em '+(Date.now()-t)+' ms\nVersão na planilha: '+j.ver+'\nNa planilha: '+(j.quadras||[]).length+' quadras, '+(j.entregas||[]).length+' entregas'+((j.quadras||[]).length?'':'\n⚠ A planilha está vazia: destrave o cadeado (senha) para enviar os dados.');if(j.error)o.textContent+='\nErro do script: '+j.error}
@@ -1396,6 +1406,28 @@ function roCtl(v){v.querySelectorAll('#c1,#c2,#c3,#c4,[data-q]').forEach(i=>i.di
 }
 const _setRO=setRO;setRO=v=>{_setRO(v);const a=document.querySelector('.view.on');if(v&&a&&a.id=='v-cfg')show('map');else if(a&&a.id=='v-ctl')ctl();marca()};
 puxar();marca();
+
+/* Contorno: a barra de desenho fica oculta; "Editar contorno" no painel da quadra aciona o modo de edição */
+function editarContorno(){const b=document.querySelector('.leaflet-draw-edit-edit');if(!b||b.classList.contains('leaflet-disabled'))return toast('Selecione uma quadra');b.click()}
+const _info2=info;info=function(){_info2();if(sel&&sel.t=='q'){const el=$('#info');el.insertAdjacentHTML('beforeend','<div class="row ed"><button onclick="editarContorno()"><i class="fa fa-vector-square"></i> Editar contorno</button></div>')}};
+
+/* Visão 3D (MapLibre GL + OpenFreeMap): opção no menu de camadas; precisa de internet, carrega só quando usada */
+const L3=L.layerGroup();LC.addOverlay(L3,'Visão 3D (prédios)');let M3=null;
+const lib3D=()=>window.maplibregl?Promise.resolve():new Promise((ok,no)=>{const c=document.createElement('link');c.rel='stylesheet';c.href='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.append(c);
+  const s=document.createElement('script');s.src='https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js';s.onload=ok;s.onerror=()=>no(Error('sem acesso ao servidor'));document.head.append(s)});
+const gj3=()=>({type:'FeatureCollection',features:S.quadras.map(q=>({type:'Feature',properties:{nome:q.nome,cor:(typeof qColor=='function'&&qColor(q))||q.cor},geometry:{type:'Polygon',coordinates:[[...q.ring,q.ring[0]].map(p=>[p[1],p[0]])]}}))});
+L3.on('add',async()=>{if(!navigator.onLine){toast('3D precisa de internet');setTimeout(()=>toast(''),2500);return map.removeLayer(L3)}
+  try{await lib3D()}catch(err){alert('Não foi possível carregar o 3D: '+err.message);return map.removeLayer(L3)}
+  let d=$('#m3');if(!d){d=document.createElement('div');d.id='m3';document.body.append(d)}d.hidden=false;d.innerHTML='<button id="m3x" class="panel"><i class="fa fa-xmark"></i> Sair do 3D</button>';
+  const c=map.getCenter();M3=new maplibregl.Map({container:d,style:'https://tiles.openfreemap.org/styles/liberty',center:[c.lng,c.lat],zoom:Math.max(map.getZoom()-1,12),pitch:60,bearing:0,maxPitch:80});
+  M3.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+  M3.on('load',()=>{M3.addSource('q',{type:'geojson',data:gj3()});const b=M3.getLayer('building-3d')?'building-3d':undefined;
+    M3.addLayer({id:'q-f',type:'fill',source:'q',paint:{'fill-color':['get','cor'],'fill-opacity':.45}},b);
+    M3.addLayer({id:'q-l',type:'line',source:'q',paint:{'line-color':['get','cor'],'line-width':2.5}});
+    M3.addLayer({id:'q-t',type:'symbol',source:'q',layout:{'text-field':['get','nome'],'text-font':['Noto Sans Bold'],'text-size':20},paint:{'text-color':'#222','text-halo-color':'#fff','text-halo-width':2}})});
+  $('#m3x').onclick=()=>map.removeLayer(L3)});
+L3.on('remove',()=>{const d=$('#m3');if(M3){const c=M3.getCenter();map.setView([c.lat,c.lng],M3.getZoom()+1,{animate:false});M3.remove();M3=null}if(d)d.hidden=true});
+const _show3=show;show=v=>{if(v!='map'&&map.hasLayer(L3))map.removeLayer(L3);_show3(v)};
 </script>
 <script>/* ===== s13.js — Registro de Designação de Território (S-13-T), preenchido por cima do PDF original (fica idêntico) =====
    Usa o pdf-lib (arquivo pdf-lib.min.js, carregado só quando se gera o PDF). Coordenadas em pontos, medidas do próprio PDF. */

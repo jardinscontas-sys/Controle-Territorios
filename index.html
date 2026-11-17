@@ -1228,7 +1228,12 @@ function cfg(){const cl=typeof CLOUD_URL!=='undefined'&&CLOUD_URL;
   <small class="sm">Último backup: ${S.bk?new Date(S.bk).toLocaleString('pt-BR'):'nunca'}</small>
   <label style="margin-top:12px">Script do Google Sheets (link /exec)<input id="nu" value="${esc(localStorage.getItem('jardins_url')||CU())}" placeholder="https://script.google.com/macros/s/.../exec"></label>
   <div class="row"><button class="p" onclick="conectar()"><i class="fa fa-plug"></i> Conectar e sincronizar</button></div>
+  <div class="row"><button onclick="diag()"><i class="fa fa-stethoscope"></i> Testar conexão</button></div><pre id="dg" class="sm" style="white-space:pre-wrap"></pre>
   <small class="sm">${CU()?'<i class="fa fa-cloud"></i> Sincronização automática ligada.':'Sem link: os dados ficam só neste aparelho.'}${cl?'':' Para valer em todos os aparelhos, cole também o link em config.js.'}</small></div></div>`}
+async function diag(){const o=$('#dg'),u=CU();if(!u){o.textContent='Nenhum link configurado neste aparelho.';return}
+  o.textContent='Testando...\nLink em uso: '+u+'\nVersão local: '+(S.ver||'(nenhuma)')+' · '+S.quadras.length+' quadras · '+S.entregas.length+' entregas aqui';const t=Date.now();
+  try{const j=await jsonp(u,'acao=dados&ver=');o.textContent+='\n\nPlanilha respondeu em '+(Date.now()-t)+' ms\nVersão na planilha: '+j.ver+'\nNa planilha: '+(j.quadras||[]).length+' quadras, '+(j.entregas||[]).length+' entregas'+((j.quadras||[]).length?'':'\n⚠ A planilha está vazia: destrave o cadeado (senha) para enviar os dados.');if(j.error)o.textContent+='\nErro do script: '+j.error}
+  catch(err){o.textContent+='\n\n✖ Falha ao ler a planilha: '+err.message+'\nConfira: implantação como "Qualquer pessoa", Nova versão publicada e link /exec correto.'}}
 async function conectar(){const u=($('#nu').value||'').trim();localStorage.setItem('jardins_url',u);S.ver='';toast('Sincronizando...');await puxar(true);toast('');marca();if(VAZIA&&!isRO())sheets(null,1)}
 /* Planilha do Google: abas Quadras, Entregas, Cobertura (uma linha por quadra trabalhada) e GeoJSON (texto em blocos) */
 const geoJ=()=>({type:'FeatureCollection',features:S.quadras.map(q=>({type:'Feature',properties:{id:q.id,mapa:q.mapa,nome:q.nome,codigo:q.codigo,desc:q.desc,cor:q.cor,criado:q.criado,auto:q.auto},geometry:{type:'Polygon',coordinates:[[...q.ring,q.ring[0]].map(p=>[p[1],p[0]])]}})),controle:S.entregas,conf:S.conf||{}});

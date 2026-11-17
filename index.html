@@ -1224,13 +1224,12 @@ function aviso(){let e=$('#aviso');if(!e){e=document.createElement('div');e.id='
 function menuDados(){show('cfg')}
 function cfg(){const cl=typeof CLOUD_URL!=='undefined'&&CLOUD_URL;
   $('#v-cfg').innerHTML=`<div class="page"><div class="panel"><h2><i class="fa fa-gear"></i> Configurações</h2>
-  <h4>Backup</h4><div class="row"><button class="p" onclick="backup()"><i class="fa fa-download"></i> Fazer backup</button><button class="ed" onclick="$('#imp').click()"><i class="fa fa-upload"></i> Restaurar backup</button></div>
+  <div class="row"><button class="p" onclick="backup()"><i class="fa fa-download"></i> Salvar backup</button><button onclick="csv()"><i class="fa fa-file-excel"></i> Gerar tabela (salvar no aparelho)</button></div>
   <small class="sm">Último backup: ${S.bk?new Date(S.bk).toLocaleString('pt-BR'):'nunca'}</small>
-  <h4 style="margin-top:14px">Google Sheets</h4>
-  ${cl?'<small class="sm"><i class="fa fa-cloud"></i> Ligado à planilha do Google.</small>':`<label>Link da nuvem (Google Apps Script)<input id="nu" value="${esc(localStorage.getItem('jardins_url')||'')}" placeholder="https://script.google.com/macros/s/.../exec"></label>`}
-  <div class="row"><button onclick="nuvem(0)"><i class="fa fa-cloud-arrow-down"></i> Atualizar agora (ler a planilha)</button><button class="p ed" onclick="nuvem(1)"><i class="fa fa-table"></i> Salvar agora no Google Sheets</button></div>
-  <h4 style="margin-top:14px">Uso sem internet</h4>
-  <button onclick="offlineMapas(MAPAS.map(m=>m.n))"><i class="fa fa-mobile-screen"></i> Salvar mapas para usar sem internet</button></div></div>`}
+  <label style="margin-top:12px">Script do Google Sheets (link /exec)<input id="nu" value="${esc(localStorage.getItem('jardins_url')||CU())}" placeholder="https://script.google.com/macros/s/.../exec"></label>
+  <div class="row"><button class="p" onclick="conectar()"><i class="fa fa-plug"></i> Conectar e sincronizar</button></div>
+  <small class="sm">${CU()?'<i class="fa fa-cloud"></i> Sincronização automática ligada.':'Sem link: os dados ficam só neste aparelho.'}${cl?'':' Para valer em todos os aparelhos, cole também o link em config.js.'}</small></div></div>`}
+async function conectar(){const u=($('#nu').value||'').trim();localStorage.setItem('jardins_url',u);S.ver='';toast('Sincronizando...');await puxar(true);toast('');marca();if(VAZIA&&!isRO())sheets(null,1)}
 /* Planilha do Google: abas Quadras, Entregas, Cobertura (uma linha por quadra trabalhada) e GeoJSON (texto em blocos) */
 const geoJ=()=>({type:'FeatureCollection',features:S.quadras.map(q=>({type:'Feature',properties:{id:q.id,mapa:q.mapa,nome:q.nome,codigo:q.codigo,desc:q.desc,cor:q.cor,criado:q.criado,auto:q.auto},geometry:{type:'Polygon',coordinates:[[...q.ring,q.ring[0]].map(p=>[p[1],p[0]])]}})),controle:S.entregas,conf:S.conf||{}});
 function abasSheets(){const qn=id=>(S.quadras.find(q=>q.id==id)||{}).nome||'?',ord=(a,b)=>a.mapa-b.mapa||(a.entrega||'').localeCompare(b.entrega||''),gj=JSON.stringify(geoJ()),gb=[];
@@ -1246,7 +1245,7 @@ const enviarForm=(u,body)=>new Promise(ok=>{const id='gf'+Date.now(),fr=document
   addEventListener('message',h);document.body.append(fr,f);f.submit()});
 /* ---- Planilha como fonte dos dados: todos LEEM (JSONP, a cada 30 s); só quem tem a senha (cadeado aberto) GRAVA ---- */
 const CU=()=>localStorage.getItem('jardins_url')||(typeof CLOUD_URL!=='undefined'?CLOUD_URL:''),PW=()=>sessionStorage.getItem('jardins_pw')||'',isRO=()=>document.body.classList.contains('ro');
-let pulling=0,pushing=0,pushT=0,applying=0;
+let pulling=0,pushing=0,pushT=0,applying=0,VAZIA=false;
 function marca(t){let s=$('#syn');if(!s){s=document.createElement('div');s.id='syn';document.body.append(s)}s.hidden=!CU();
   const h=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});s.innerHTML=`<i class="fa fa-cloud"></i> ${t||'Planilha lida às '+h}${isRO()?' · só leitura':''}`}
 const jsonp=(u,q)=>new Promise((ok,no)=>{const cb='jp'+Date.now()+Math.random().toString(36).slice(2,6),s=document.createElement('script'),
@@ -1258,9 +1257,9 @@ function aplicar(j){applying=1;S.quadras=j.quadras;S.entregas=j.entregas||[];S.c
 async function puxar(forcar){const u=CU();if(!u||pulling)return;if(S.dirty&&!isRO()&&!forcar){clearTimeout(pushT);pushT=setTimeout(()=>sheets(null,1),500);return}
   pulling=1;try{const j=await jsonp(u,'acao=dados&ver='+encodeURIComponent(S.ver||''));
     if(j.igual)return marca();
-    if(!j.quadras||!j.quadras.length)return marca('Planilha ainda vazia');
+    if(!j.quadras||!j.quadras.length){VAZIA=true;if(!isRO())sheets(null,1);return marca('Planilha ainda vazia')}VAZIA=false;
     aplicar(j);marca()}catch(err){marca('sem conexão com a planilha')}finally{pulling=0}}
-function saveHook(){if(applying||isRO()||!CU())return;S.dirty=1;clearTimeout(pushT);pushT=setTimeout(()=>sheets(null,1),2500)}
+function saveHook(){if(applying||isRO()||!CU())return;S.dirty=1;clearTimeout(pushT);pushT=setTimeout(()=>sheets(null,1),1000)}
 function conflito(u){modal(`<h3><i class="fa fa-triangle-exclamation"></i> A planilha mudou</h3><p>Outra pessoa (ou outro aparelho) alterou a planilha desde a sua última leitura.</p>
   <button class="p" onclick="closeM();S.dirty=0;puxar(true)"><i class="fa fa-cloud-arrow-down"></i> Atualizar com a planilha (perde minhas alterações)</button>
   <button class="d" onclick="closeM();enviar('${u}',1)"><i class="fa fa-cloud-arrow-up"></i> Sobrescrever a planilha com o que tenho aqui</button>`)}
@@ -1273,14 +1272,15 @@ async function enviar(u,force,sil){if(pushing)return;clearTimeout(pushT);
     if(r.semConfirmacao){marca('enviado, sem confirmação do Google');if(!sil)modal(`<h3>Enviado, sem confirmação</h3><p>O Google não confirmou. Confira o link (implantação “Qualquer pessoa”) e se o script foi reimplantado como Nova versão.</p><button onclick="closeM()">Fechar</button>`);return}
     if(r.ok===false||r.error){if(/senha/i.test(r.error||'')){sessionStorage.removeItem('jardins_pw');alert('Senha incorreta no script.')}throw Error(r.error||'o script recusou')}
     applying=1;S.ver=r.ver;S.dirty=0;S.bk=Date.now();save();applying=0;aviso();marca('salvo às '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}));
-    if(!sil)modal(`<h3><i class="fa fa-table"></i> Salvo no Google</h3><p>Planilha atualizada. Quem abrir o app (cadeado fechado) verá os dados em até 30 s.</p>${r.url?`<a class="btn p" target="_blank" href="${r.url}"><i class="fa fa-up-right-from-square"></i> Abrir a planilha</a>`:''}<button onclick="closeM()">Fechar</button>`)}
+    if(!sil)modal(`<h3><i class="fa fa-table"></i> Salvo no Google</h3><p>Planilha atualizada. Quem abrir o app (cadeado fechado) verá os dados em poucos segundos.</p>${r.url?`<a class="btn p" target="_blank" href="${r.url}"><i class="fa fa-up-right-from-square"></i> Abrir a planilha</a>`:''}<button onclick="closeM()">Fechar</button>`)}
   catch(err){toast('');alert('Falha ao salvar no Google: '+err.message)}finally{pushing=0}}
 function sheets(u,sil){u=u||CU();if(!u){if(!sil){menuDados();alert('Cole primeiro o link do Apps Script (veja apps_script.gs).')}return}
   if(isRO()){if(!sil)alert('Desbloqueie o cadeado (senha) para salvar.');return}
   return enviar(u,0,sil)}
 async function nuvem(up){const u=($('#nu')||{}).value&&$('#nu').value.trim();if(u)localStorage.setItem('jardins_url',u);if(!CU())return alert('Cole o link do Apps Script (veja apps_script.gs)');
   if(up)return sheets(CU());toast('Lendo a planilha...');S.dirty=0;await puxar(true);toast('Planilha lida ✓');setTimeout(()=>toast(''),2500)}
-setInterval(()=>{if(!document.hidden)puxar()},30000);
+setInterval(()=>{if(!document.hidden)puxar()},10000); // tempo real: confere a versão da planilha a cada 10 s
+addEventListener('focus',()=>puxar());
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)puxar()});
 addEventListener('online',()=>puxar());
 
@@ -1339,7 +1339,7 @@ $('#themes').insertAdjacentHTML('afterbegin','<button id="ro"></button>');
 let setRO=v=>{document.body.classList.toggle('ro',v);const b=$('#ro');b.classList.toggle('on',v);b.innerHTML=`<i class="fa fa-${v?'lock':'lock-open'}"></i>`;b.title=v?'Edição bloqueada: toque e digite a senha':'Edição liberada: toque para bloquear';
   if(v)sessionStorage.removeItem('jardins_ok');else sessionStorage.setItem('jardins_ok','1')};
 $('#ro').onclick=async()=>{if(!isRO()){setRO(true);sessionStorage.removeItem('jardins_pw');marca();return}const s=prompt('Senha para editar:');if(s===null)return;
-  if(btoa(s)!=='MTQzOTQxQA==')return alert('Senha incorreta.');sessionStorage.setItem('jardins_pw',s);await puxar(true);setRO(false);marca()};
+  if(btoa(s)!=='MTQzOTQxQA==')return alert('Senha incorreta.');sessionStorage.setItem('jardins_pw',s);await puxar(true);setRO(false);marca();if(VAZIA)sheets(null,1)};
 setRO(sessionStorage.getItem('jardins_ok')!='1');
 
 /* ---------- 6. Conferência, dividir e juntar quadras ---------- */

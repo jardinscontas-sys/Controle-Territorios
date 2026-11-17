@@ -1454,7 +1454,8 @@ const _lq3=loadQ;loadQ=function(){_lq3();if(M3&&M3.getSource&&M3.getSource('q'))
 
 /* Caminhos: aparecem no mapa comum e no 3D quando a opção está marcada; espessura e cor ajustáveis */
 let CAMW=+localStorage.getItem('jardins_cw')||3,CAMC=localStorage.getItem('jardins_ccam')||'#E4562E';
-const cam3j=()=>({type:'Feature',properties:{},geometry:{type:'MultiLineString',coordinates:KML_DATA.caminhos.map(c=>c.map(p=>[p[1],p[0]]))}});
+const cam3j=()=>({type:'Feature',properties:{},geometry:{type:'MultiLineString',coordinates:[...KML_DATA.caminhos,...MAPAS.map(m=>[...m.ring,m.ring[0]])].map(c=>c.map(p=>[p[1],p[0]]))}}); // caminhos do KML + contorno de todos os Mapas
+MAPAS.forEach(m=>caminhos.addLayer(L.polyline([...m.ring,m.ring[0]],{color:CAMC,weight:CAMW,interactive:false})));
 function camStyle(){caminhos.eachLayer(l=>l.setStyle({color:CAMC,weight:CAMW}));if(M3&&M3.getLayer&&M3.getLayer('cam')){M3.setPaintProperty('cam','line-color',CAMC);M3.setPaintProperty('cam','line-width',CAMW)}}
 function cam3d(){if(!M3||!M3.getSource)return;if(!M3.getSource('cam'))M3.addSource('cam',{type:'geojson',data:cam3j()});
   if(!M3.getLayer('cam'))M3.addLayer({id:'cam',type:'line',source:'cam',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':CAMC,'line-width':CAMW}});

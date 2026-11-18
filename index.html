@@ -823,6 +823,7 @@ td input{padding:4px 6px}
 .m3on .leaflet-control-zoom{display:none}.m3on .maplibregl-ctrl-top-right{margin-top:60px}
 #camc{position:absolute;left:12px;bottom:36px;z-index:1000;padding:8px 12px;display:grid;gap:6px;width:190px}#camc[hidden]{display:none}#camc input[type=range]{padding:0}#camc input[type=color]{height:30px;padding:0}
 @media(max-width:760px){#camc{left:8px;bottom:36px;width:170px}}
+.ro #nav [data-v=ctl]{display:none}
 </style>
 </head>
 <body>
@@ -1041,7 +1042,7 @@ function info(){
     const s=stat(sel.id);
     h=`<h3><i class="fa fa-layer-group"></i> Mapa ${sel.id}</h3><dl><dt>Quadras</dt><dd>${s.qs.length}</dd><dt>Última vez trabalhada</dt><dd>${fmtD(s.last)}</dd>
     <dt>Final</dt><dd>${(ult(sel.id)||{}).final||'—'}</dd><dt>Responsável</dt><dd>${esc((ult(sel.id)||{}).resp)||'—'}</dd></dl>
-    <div class="row"><button class="p" onclick="C.m=${sel.id};C.e=null;show('ctl')"><i class="fa fa-clipboard-list"></i> Controle</button></div>
+    <div class="row"><button class="p ed" onclick="C.m=${sel.id};C.e=null;show('ctl')"><i class="fa fa-clipboard-list"></i> Controle</button></div>
 `;
   }
   el.innerHTML='<button class="x" title="Minimizar/expandir" onclick="$(\'#info\').classList.toggle(\'min\')"><i class="fa fa-chevron-down"></i></button>'+h;
@@ -1409,7 +1410,7 @@ aviso();loadQ();tree();
 function roCtl(v){v.querySelectorAll('#c1,#c2,#c3,#c4,[data-q]').forEach(i=>i.disabled=true);
   v.querySelectorAll('button[onclick*="saveE"],button[onclick*="delE"],button[onclick*="today()"]').forEach(b=>b.disabled=true);
 }
-const _setRO=setRO;setRO=v=>{_setRO(v);const a=document.querySelector('.view.on');if(v&&a&&a.id=='v-cfg')show('map');else if(a&&a.id=='v-ctl')ctl();marca()};
+const _setRO=setRO;setRO=v=>{_setRO(v);const a=document.querySelector('.view.on');if(v&&a&&(a.id=='v-cfg'||a.id=='v-ctl'))show('map');marca()};
 puxar();marca();
 
 /* Contorno: a barra de desenho fica oculta; "Editar contorno" no painel da quadra aciona o modo de edição */
@@ -1430,7 +1431,7 @@ L3.on('add',async()=>{try{localStorage.setItem('jardins_3d','1')}catch(_){}if(!n
     M3.addLayer({id:'q-t',type:'symbol',source:'q',layout:{'text-field':['get','nome'],'text-font':['Noto Sans Bold'],'text-size':20},paint:{'text-color':'#222','text-halo-color':'#fff','text-halo-width':2}})});
   $('#m3x').onclick=()=>map.removeLayer(L3)});
 L3.on('remove',()=>{document.body.classList.remove('m3on');try{localStorage.setItem('jardins_3d','0')}catch(_){}const d=$('#m3');if(M3){const c=M3.getCenter();map.setView([c.lat,c.lng],M3.getZoom()+1,{animate:false});M3.remove();M3=null}if(d)d.hidden=true});
-const _show3=show;show=v=>{_show3(v);const d=$('#m3');if(d&&M3){d.hidden=v!='map';if(v=='map')setTimeout(()=>M3&&M3.resize(),50)}}; // trocar de aba não desliga o 3D
+const _show3=show;show=v=>{if(v=='ctl'&&isRO())v='map';_show3(v);const d=$('#m3');if(d&&M3){d.hidden=v!='map';if(v=='map')setTimeout(()=>M3&&M3.resize(),50)}}; // trocar de aba não desliga o 3D
 try{if(localStorage.getItem('jardins_3d')=='1'&&navigator.onLine)map.addLayer(L3)}catch(_){}
 /* Imagem do WhatsApp em 3D: renderiza o Mapa inclinado (fora da tela) e copia para o canvas */
 async function snap3D(m,qs,fw,fh,f){await lib3D();const d=document.createElement('div');d.style.cssText=`position:fixed;left:-99999px;top:0;width:${fw}px;height:${fh}px`;document.body.append(d);let mp;
